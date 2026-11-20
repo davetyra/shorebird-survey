@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f5c6e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Shorebirds">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Shorebird Survey</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root {
+  --bg: #f4f6f5;
+  --card: #ffffff;
+  --ink: #142124;
+  --muted: #5b6b6e;
+  --line: #d5dddd;
+  --accent: #0f5c6e;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcecef;
+  --warn: #9a5b00;
+  --warn-soft: #fff3dc;
+  --danger: #b3261e;
+  --ok: #1d7a3e;
+  --radius: 12px;
+  --tap: 48px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1415; --card: #182022; --ink: #e8eeee; --muted: #9db0b3;
+    --line: #2d3a3d; --accent: #4fb3c8; --accent-ink: #062228; --accent-soft: #1d3a40;
+    --warn: #ffc266; --warn-soft: #3a2c12; --danger: #ff8a80; --ok: #6fd393;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+header.top {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--accent); color: var(--accent-ink);
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+header.top h1 { font-size: 18px; margin: 0; font-weight: 650; }
+header.top .sub { font-size: 13px; opacity: .85; }
+main { max-width: 640px; margin: 0 auto; padding: 12px 16px; }
+section.tab { display: none; }
+section.tab.active { display: block; }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 14px;
+}
+.card h2 { font-size: 16px; margin: 0 0 4px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); }
+.hint { font-size: 14px; color: var(--muted); margin: 0 0 10px; }
+label.field { display: block; margin: 10px 0; }
+label.field > span { display: block; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+input[type=text], input[type=date], input[type=time], input[inputmode], select, textarea {
+  width: 100%; min-height: var(--tap); font: inherit; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  -webkit-appearance: none; appearance: none;
+}
+select { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 36px; }
+textarea { min-height: 96px; resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; min-width: 0; }
+.with-btn { display: flex; gap: 8px; }
+.with-btn input { flex: 1; }
+button { font: inherit; cursor: pointer; }
+.btn {
+  min-height: var(--tap); padding: 0 16px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); font-weight: 600;
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.block { width: 100%; margin-top: 10px; }
+.area-desc { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+/* option pickers (replace "circle one") */
+.opts { display: grid; gap: 8px; }
+.opts button {
+  min-height: var(--tap); text-align: left; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  display: flex; gap: 10px; align-items: center;
+}
+.opts button b { min-width: 28px; font-size: 18px; }
+.opts button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.opts.two { grid-template-columns: 1fr 1fr; }
+.opts.two button { font-size: 15px; }
+.pct-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pct { position: relative; }
+.pct::after { content: "%"; position: absolute; right: 12px; bottom: 13px; color: var(--muted); }
+.sumnote { font-size: 14px; margin-top: 6px; }
+.sumnote.bad { color: var(--warn); }
+.sumnote.good { color: var(--ok); }
+
+/* species counters */
+.birdbar {
+  position: sticky; top: calc(52px + env(safe-area-inset-top)); z-index: 5;
+  background: var(--bg); padding: 8px 0; display: flex; gap: 8px; align-items: center;
+}
+.birdbar input { flex: 1; }
+.birdbar .tot { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.group-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 16px 2px 6px; }
+.sp {
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px;
+}
+.sp.has { border-color: var(--accent); background: var(--accent-soft); }
+.sp .nm { flex: 1; min-width: 0; }
+.sp .nm div { font-weight: 600; line-height: 1.2; }
+.sp .nm small { color: var(--muted); font-size: 12px; letter-spacing: .05em; }
+.sp button {
+  width: var(--tap); height: var(--tap); border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); font-size: 24px; font-weight: 600; line-height: 1; flex: none;
+}
+.sp button.plus { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.sp input.count {
+  width: 64px; min-height: var(--tap); text-align: center; font-size: 20px; font-weight: 700;
+  padding: 4px; flex: none;
+}
+.sp .x { font-size: 18px; color: var(--danger); }
+.addother { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
+.addother .btn { grid-column: 1 / -1; }
+
+/* review */
+.checks { list-style: none; padding: 0; margin: 0; }
+.checks li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 15px; display: flex; gap: 8px; }
+.checks li:last-child { border-bottom: 0; }
+.checks .ic { width: 20px; flex: none; text-align: center; font-weight: 700; }
+.checks .miss .ic { color: var(--warn); }
+.checks .okk .ic { color: var(--ok); }
+.summary { font-size: 15px; }
+.summary table { width: 100%; border-collapse: collapse; }
+.summary td { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.summary td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hist li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 15px;
+  opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; max-width: 90vw; text-align: center;
+}
+.toast.show { opacity: 1; }
+
+/* bottom nav */
+nav.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: var(--card); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+nav.tabs button {
+  border: 0; background: none; color: var(--muted); min-height: 60px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 12px; font-weight: 600;
+}
+nav.tabs button .n { font-size: 18px; font-weight: 700; }
+nav.tabs button[aria-selected=true] { color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
+.navnext { display: flex; gap: 10px; margin: 6px 0 20px; }
+.navnext .btn { flex: 1; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Shorebird Area Search</h1>
+    <div class="sub" id="hdrSub">New survey</div>
+  </div>
+  <div class="sub" id="saved">Saved on phone</div>
+</header>
+
+<main>
+<!-- ============ 1. START ============ -->
+<section class="tab active" id="tab-start">
+  <div class="card">
+    <h2>Survey</h2>
+    <p class="hint">Record the survey area and start time, then count birds. Fill in conditions after the count.</p>
+    <label class="field"><span>Survey Area</span>
+      <select data-f="area" id="areaSel"><option value="">Choose area…</option></select>
+    </label>
+    <div class="area-desc" id="areaDesc"></div>
+    <label class="field"><span>Date</span><input type="date" data-f="date"></label>
+    <div class="row">
+      <label class="field"><span>Start Time</span>
+        <div class="with-btn"><input type="time" data-f="start"><button class="btn" data-now="start">Now</button></div>
+      </label>
+    </div>
+    <label class="field"><span>Observer 1</span><input type="text" data-f="obs1" autocomplete="name" autocapitalize="words"></label>
+    <label class="field"><span>Observer 2</span><input type="text" data-f="obs2" autocapitalize="words"></label>
+    <label class="field"><span>Data Recorder</span><input type="text" data-f="recorder" autocapitalize="words"></label>
+  </div>
+  <div class="navnext"><button class="btn primary" data-go="birds">Start counting birds →</button></div>
+</section>
+
+<!-- ============ 2. BIRDS ============ -->
+<section class="tab" id="tab-birds">
+  <div class="birdbar">
+    <input type="text" id="filter" placeholder="Find species or code…" autocomplete="off" autocapitalize="off">
+    <span class="tot" id="birdTot">0 birds</span>
+  </div>
+  <p class="hint">Count all shorebirds on the ground during the survey (don't double-count birds that leave and return). Record raptors within, perched next to, or foraging over the area. Tap the number to type a large count.</p>
+  <div id="birdList"></div>
+
+  <div class="card" id="otherCard">
+    <h2>Other species</h2>
+    <p class="hint">Any species not on the list.</p>
+    <div id="otherList"></div>
+    <div class="addother">
+      <input type="text" id="otherName" placeholder="Species name" autocapitalize="words">
+      <input type="text" id="otherCode" placeholder="Code" autocapitalize="characters" maxlength="6">
+      <button class="btn" id="otherAdd">+ Add species</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Bird notes</h2>
+    <textarea data-f="birdNotes" placeholder="Notes about bird observations"></textarea>
+  </div>
+  <div class="navnext"><button class="btn primary" data-go="cond">Done counting → Conditions</button></div>
+</section>
+
+<!-- ============ 3. CONDITIONS ============ -->
+<section class="tab" id="tab-cond">
+  <div class="card">
+    <h2>End Time</h2>
+    <div class="with-btn"><input type="time" data-f="end" aria-label="End time"><button class="btn" data-now="end">Now</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Wind</h2>
+    <div class="opts" data-pick="wind"></div>
+  </div>
+  <div class="card">
+    <h2>Precipitation</h2>
+    <div class="opts" data-pick="precip"></div>
+    <p class="hint" style="margin-top:8px">Use 3 only if rain starts after the survey begins but can still be completed.</p>
+  </div>
+  <div class="card">
+    <h2>Cloud Cover</h2>
+    <p class="hint">Percent of sky covered by clouds (0–100).</p>
+    <div class="pct"><input inputmode="numeric" data-f="cloud" data-pct aria-label="Cloud cover percent"></div>
+  </div>
+  <div class="card">
+    <h2>Cover Types (pick 1 or 2)</h2>
+    <p class="hint">Choose the one or two cover types that each describe at least 40% of the survey area. If none is over 40%, describe the mix in the notes.</p>
+    <div class="opts two" data-pick="cover" data-multi="2"></div>
+  </div>
+  <div class="card">
+    <h2>Tide</h2>
+    <p class="hint">Your best assessment of the tidal conditions.</p>
+    <div class="opts two" data-pick="tide"></div>
+  </div>
+  <div class="card">
+    <h2>Visible Area</h2>
+    <p class="hint">Percent of the survey area you could see and count.</p>
+    <label class="field"><span>Visible Area (0–100)</span><div class="pct"><input inputmode="numeric" data-f="visible" data-pct></div></label>
+    <p class="hint">Of the visible area, the percent that is flooded, open dirt/mud, and vegetated.</p>
+    <div class="pct-grid">
+      <label class="field"><span>PercFlood</span><div class="pct"><input inputmode="numeric" data-f="flood" data-pct></div></label>
+      <label class="field"><span>PercBare</span><div class="pct"><input inputmode="numeric" data-f="bare" data-pct></div></label>
+      <label class="field"><span>PercVeg</span><div class="pct"><input inputmode="numeric" data-f="veg" data-pct></div></label>
+    </div>
+    <div class="sumnote" id="sumNote"></div>
+  </div>
+  <div class="card">
+    <h2>Veg Height</h2>
+    <p class="hint">Average height of the vegetation in the visible area.</p>
+    <div class="opts" data-pick="vegHeight"></div>
+  </div>
+  <div class="card">
+    <h2>Notes</h2>
+    <textarea data-f="condNotes" placeholder="Survey area / conditions notes"></textarea>
+  </div>
+  <div class="navnext"><button class="btn primary" data-go="send">Review &amp; Send →</button></div>
+</section>
+
+<!-- ============ 4. SEND ============ -->
+<section class="tab" id="tab-send">
+  <div class="card">
+    <h2>Check</h2>
+    <ul class="checks" id="checks"></ul>
+  </div>
+  <div class="card summary">
+    <h2>Birds counted</h2>
+    <div id="summary"></div>
+  </div>
+  <div class="card">
+    <h2>Send</h2>
+    <p class="hint">“Share CSV” opens your phone's share menu. Choose Mail or Messages to send the file.</p>
+    <button class="btn primary block" id="shareBtn">Share CSV file</button>
+    <button class="btn block" id="emailBtn">Email (CSV in message body)</button>
+    <button class="btn block" id="dlBtn">Download CSV</button>
+  </div>
+  <div class="card">
+    <h2>Finished?</h2>
+    <p class="hint">This survey is saved on the phone until you start a new one.</p>
+    <button class="btn danger block" id="newBtn">Start a new survey</button>
+  </div>
+  <div class="card">
+    <h2>Previously sent</h2>
+    <ul class="checks hist" id="hist"></ul>
+  </div>
+</section>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="start" aria-selected="true"><span class="n">1</span>Start</button>
+  <button role="tab" data-tab="birds" aria-selected="false"><span class="n" id="navBirds">2</span>Birds</button>
+  <button role="tab" data-tab="cond" aria-selected="false"><span class="n">3</span>Conditions</button>
+  <button role="tab" data-tab="send" aria-selected="false"><span class="n">4</span>Send</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======================= CONFIG — edit these lists ======================= */
+const SEND_TO = "dave@morrocoastaudubon.org";
+
+// Survey areas: [area number, short label, full description]
+const AREAS = [
+  ["1", "Land – Morro Rock, Embarcadero & north sand spit", "From south side of Morro Rock check birds along jetty and small beach. Use scope near Morro Rock, T-Piers, and street-end viewing docks along the Embarcadero to scan the shore of the sand spit as far south as where it narrows across from Tidelands Park."],
+  ["2", "Boat – from Embarcadero: Grassy Island & sand spit", "Depart from Embarcadero. Sections 2 & 3 are usually completed together. Concentrate on Grassy Island & the shore of the sand spit. At higher tides, the boundary of Section 4 starts at the southern tip of Grassy Island and runs from the sand spit east to Fairbanks Point."],
+  ["3", "Boat – (usually done with Section 2)", "Sections 2 & 3 are usually completed together."],
+  ["4", "Boat – from State Park Marina: south of Grassy Island", "Depart from State Park Marina. South of Grassy Island. Concentrate on shore of sand spit and any exposed mudflats, but also check shore along heron rookery to museum. The southern boundary runs east to west from just north of the Marina to the sand spit."],
+  ["5", "Boat – from State Park Marina: south to Pasadena Point", "Depart from State Park Marina. Concentrate on sand spit and any exposed mudflats south of the Marina to approximately the northern tip of Pasadena Point."],
+  ["6 & 7", "Land – State Park Marina & pickleweed marsh", "Use scope around State Park Marina (to the south side) and east along the Sarcocornia (pickleweed) marsh as far as necessary."],
+  ["8", "Land – Bush Lupine Point, Elfin Forest", "Use scope from Bush Lupine Point in Elfin Forest. Park at north end of 13th Street in Los Osos. If needed, continue along boardwalk to Siena's View. Scope to the oyster floats, where shorebirds congregate especially at high tides."],
+  ["9", "Land – Pasadena Dr, Baywood Pier, Sweet Springs", "Use scope from pullout on Pasadena Drive, Baywood Pier, Sweet Springs Nature Preserve (enter at Broderson St., walk to end of boardwalk), & further west at public access near Mitchell Dr. & Doris St."],
+  ["10", "Boat – from Cuesta Inlet: sand spit", "Depart from Cuesta Inlet. Concentrate on sand spit and any exposed mudflats south to approximately Cuesta Inlet. Southern boundary runs east to west from Cuesta Inlet to the sand spit."],
+  ["11", "Land – Butte Dr to Shark's Inlet", "Start from west end of Butte Dr. checking near shore; closer to Shark's Inlet (back corner of bay), look across to shore of sand spit. Boundary with Section 10 is north end of a large bare dune. At higher tides this can be done by boat."],
+  ["12", "Land – South Bay Blvd at Turri Rd", "Use scope from bay side of South Bay Blvd. across from Turri Rd. Further north access is available just south of Chorro Cr. Bridge."],
+  ["13", "Land – ocean side of sand spit (Montaña de Oro)", "Ocean side of sand spit. Use Montaña de Oro access. Census the beach while walking north, then walk back."],
+  ["14", "Land – Morro Rock to North Point", "Walk from Morro Rock to North Point (or vice versa). If there is water in Morro Creek, it will need to be waded or vehicle moved."],
+  ["15", "Land – Morro Rock to North Point", "Walk from Morro Rock to North Point (or vice versa). If there is water in Morro Creek, it will need to be waded or vehicle moved."],
+];
+
+const SPECIES = {
+  Shorebirds: [
+    ["BBPL","Black-bellied Plover"],["SNPL","Snowy Plover"],["SEPL","Semipalmated Plover"],["KILL","Killdeer"],
+    ["BLOY","Black Oystercatcher"],["BNST","Black-necked Stilt"],["AMAV","American Avocet"],["SPSA","Spotted Sandpiper"],
+    ["GRYE","Greater Yellowlegs"],["LEYE","Lesser Yellowlegs"],["XYEL","yellowlegs spp."],["WILL","Willet"],
+    ["WHIM","Whimbrel"],["LBCU","Long-billed Curlew"],["MAGO","Marbled Godwit"],["XCGO","Curlew/Godwit"],
+    ["RUTU","Ruddy Turnstone"],["BLTU","Black Turnstone"],["REKN","Red Knot"],["SAND","Sanderling"],
+    ["WESA","Western Sandpiper"],["LESA","Least Sandpiper"],["DUNL","Dunlin"],["XWLS","Western/Least"],
+    ["XWLD","Western/Least/Dunlin"],["XDOW","dowitcher spp."],["WISN","Wilson's Snipe"],
+  ],
+  Raptors: [
+    ["TUVU","Turkey Vulture"],["OSPR","Osprey"],["WTKI","White-tailed Kite"],["NOHA","Northern Harrier"],
+    ["SSHA","Sharp-shinned Hawk"],["COHA","Cooper's Hawk"],["XSCH","accipiter spp."],["RSHA","Red-shouldered Hawk"],
+    ["RTHA","Red-tailed Hawk"],["MAKE","American Kestrel"],["MERL","Merlin"],["PEFA","Peregrine Falcon"],["BAEA","Bald Eagle"],
+  ],
+};
+const SPECIES_NOTE = { XDOW: "Dowitchers can't be reliably told apart in winter except by call — record as dowitcher spp." };
+
+const PICKS = {
+  wind: [[0,"calm"],[1,"smoke drifts; scaly ripples"],[2,"air felt on face; no whitecaps"],[3,"leaves in motion; scattered whitecaps"],
+         [4,"leaves lifted up; numerous whitecaps"],[5,"small trees sway; many whitecaps, spray"],[6,"large branches move; whitecaps common, spray"]],
+  precip: [[0,"none"],[1,"light intermittent"],[2,"fog"],[3,"steady rain"]],
+  cover: [[1,"Wetland"],[7,"Freshwater Lake/Pond"],[9,"Wastewater Pond"],[12,"Developed"],[13,"Salt Pond"],[14,"Tidal Salt Marsh"],
+          [15,"Tidal Mud Flat"],[16,"Beach"],[17,"Rocky Shoreline"],[19,"Bay/Ocean"],[20,"Diked Marsh"],[21,"Levee"],[22,"Island"],[99,"Other (describe in notes)"]],
+  tide: [[1,"high"],[2,"high, rising"],[3,"high, falling"],[4,"half, rising"],[5,"half, falling"],[6,"low, rising"],[7,"low, falling"],[8,"low"],[9,"unknown"]],
+  vegHeight: [[0,"bare"],[1,"1–6 in"],[2,">6–12 in"],[3,">12–18 in"],[4,">18–24 in"],[5,">24 in"]],
+};
+/* ========================================================================= */
+
+const KEY = "shorebird.current.v1", HKEY = "shorebird.history.v1";
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const nowTime = () => new Date().toTimeString().slice(0, 5);
+function blank() {
+  return { area: "", date: today(), start: "", end: "", obs1: "", obs2: "", recorder: "",
+    wind: null, precip: null, cloud: "", cover: [], tide: null, visible: "", flood: "", bare: "", veg: "",
+    vegHeight: null, condNotes: "", birdNotes: "", counts: {}, others: [] };
+}
+let S = Object.assign(blank(), store.get(KEY, {}));
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { $("#saved").textContent = store.set(KEY, S) ? "Saved on phone" : "⚠ Not saving"; }, 150);
+  refreshHeader();
+}
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2200); }
+
+/* ---------- build static UI ---------- */
+const areaSel = $("#areaSel");
+for (const [num, label] of AREAS) areaSel.add(new Option(`${num} — ${label}`, num));
+
+for (const box of $$("[data-pick]")) {
+  const k = box.dataset.pick;
+  for (const [v, txt] of PICKS[k]) {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.v = v; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<b>${v}</b><span>${txt}</span>`;
+    box.append(b);
+  }
+  box.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const v = Number(b.dataset.v), max = Number(box.dataset.multi || 0);
+    if (max) {
+      const cur = S[k];
+      if (cur.includes(v)) S[k] = cur.filter(x => x !== v);
+      else if (cur.length < max) S[k] = [...cur, v];
+      else { toast(`Pick at most ${max}. Tap one to un-select it first.`); return; }
+    } else S[k] = S[k] === v ? null : v;
+    paintPicks(); save();
+  });
+}
+function paintPicks() {
+  for (const box of $$("[data-pick]")) {
+    const k = box.dataset.pick, val = S[k];
+    for (const b of $$("button", box)) {
+      const v = Number(b.dataset.v);
+      b.setAttribute("aria-pressed", String(Array.isArray(val) ? val.includes(v) : val === v));
+    }
+  }
+}
+
+function spRow(code, name, group) {
+  const d = document.createElement("div");
+  d.className = "sp"; d.dataset.code = code; d.dataset.search = (code + " " + name).toLowerCase();
+  d.innerHTML = `<div class="nm"><div>${name}</div><small>${code}${SPECIES_NOTE[code] ? " · " + SPECIES_NOTE[code] : ""}</small></div>
+    <button type="button" class="minus" aria-label="Minus one ${name}">−</button>
+    <input class="count" inputmode="numeric" aria-label="${name} count" value="">
+    <button type="button" class="plus" aria-label="Plus one ${name}">+</button>`;
+  return d;
+}
+const birdList = $("#birdList");
+for (const [group, list] of Object.entries(SPECIES)) {
+  const h = document.createElement("div"); h.className = "group-title"; h.textContent = group; h.dataset.group = group;
+  birdList.append(h);
+  for (const [code, name] of list) birdList.append(spRow(code, name, group));
+}
+birdList.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const code = b.closest(".sp").dataset.code;
+  const n = (S.counts[code] || 0) + (b.classList.contains("plus") ? 1 : -1);
+  if (n > 0) S.counts[code] = n; else delete S.counts[code];
+  if (navigator.vibrate) navigator.vibrate(8);
+  paintBirds(); save();
+});
+birdList.addEventListener("input", e => {
+  if (!e.target.classList.contains("count")) return;
+  const code = e.target.closest(".sp").dataset.code;
+  const n = parseInt(e.target.value.replace(/\D/g, ""), 10);
+  if (n > 0) S.counts[code] = n; else delete S.counts[code];
+  e.target.closest(".sp").classList.toggle("has", n > 0);
+  paintTotals(); save();
+});
+birdList.addEventListener("focusin", e => { if (e.target.classList.contains("count")) e.target.select(); });
+birdList.addEventListener("focusout", e => { if (e.target.classList.contains("count")) paintBirds(); });
+
+function paintBirds() {
+  for (const row of $$(".sp", birdList)) {
+    const n = S.counts[row.dataset.code] || 0, inp = $(".count", row);
+    if (document.activeElement !== inp) inp.value = n ? n : "";
+    inp.placeholder = "0";
+    row.classList.toggle("has", n > 0);
+  }
+  paintOthers(); paintTotals();
+}
+function totalBirds() { return Object.values(S.counts).reduce((a, b) => a + b, 0) + S.others.reduce((a, o) => a + (o.count || 0), 0); }
+function paintTotals() {
+  const t = totalBirds(), sp = Object.keys(S.counts).length + S.others.filter(o => o.count > 0).length;
+  $("#birdTot").textContent = `${t} bird${t === 1 ? "" : "s"} · ${sp} sp.`;
+}
+
+$("#filter").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  for (const row of $$(".sp", birdList)) row.style.display = !q || row.dataset.search.includes(q) ? "" : "none";
+  for (const h of $$(".group-title", birdList)) h.style.display = q ? "none" : "";
+});
+
+/* other species */
+function paintOthers() {
+  const box = $("#otherList"); box.innerHTML = "";
+  S.others.forEach((o, i) => {
+    const d = spRow(o.code || "—", o.name, "Other");
+    d.classList.toggle("has", o.count > 0);
+    const inp = $(".count", d); inp.value = o.count || ""; inp.placeholder = "0";
+    const x = document.createElement("button"); x.type = "button"; x.className = "x"; x.textContent = "✕"; x.setAttribute("aria-label", "Remove " + o.name);
+    d.append(x);
+    d.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b === x) { if (confirm(`Remove ${o.name}?`)) { S.others.splice(i, 1); paintOthers(); paintTotals(); save(); } return; }
+      o.count = Math.max(0, (o.count || 0) + (b.classList.contains("plus") ? 1 : -1));
+      paintOthers(); paintTotals(); save();
+    });
+    inp.addEventListener("input", () => { o.count = parseInt(inp.value.replace(/\D/g, ""), 10) || 0; d.classList.toggle("has", o.count > 0); paintTotals(); save(); });
+    inp.addEventListener("focus", () => inp.select());
+    box.append(d);
+  });
+}
+$("#otherAdd").addEventListener("click", () => {
+  const name = $("#otherName").value.trim(), code = $("#otherCode").value.trim().toUpperCase();
+  if (!name) { toast("Type a species name first"); $("#otherName").focus(); return; }
+  S.others.push({ name, code, count: 1 });
+  $("#otherName").value = ""; $("#otherCode").value = "";
+  paintOthers(); paintTotals(); save();
+});
+
+/* ---------- simple fields ---------- */
+function paintFields() {
+  for (const el of $$("[data-f]")) el.value = S[el.dataset.f] ?? "";
+  paintArea(); paintSum();
+}
+document.addEventListener("input", e => {
+  const el = e.target; if (!el.dataset || !el.dataset.f) return;
+  let v = el.value;
+  if (el.hasAttribute("data-pct")) {
+    v = v.replace(/\D/g, "").slice(0, 3);
+    if (v !== "" && Number(v) > 100) v = "100";
+    el.value = v;
+  }
+  S[el.dataset.f] = v;
+  if (el.dataset.f === "area") paintArea();
+  if (["flood", "bare", "veg"].includes(el.dataset.f)) paintSum();
+  save();
+});
+document.addEventListener("change", e => { if (e.target.dataset && e.target.dataset.f === "area") { S.area = e.target.value; paintArea(); save(); } });
+function paintArea() {
+  const a = AREAS.find(x => x[0] === S.area);
+  $("#areaDesc").textContent = a ? a[2] : "";
+}
+function paintSum() {
+  const parts = ["flood", "bare", "veg"].map(k => S[k]);
+  const n = $("#sumNote");
+  if (parts.every(p => p === "")) { n.textContent = ""; n.className = "sumnote"; return; }
+  const sum = parts.reduce((a, p) => a + (Number(p) || 0), 0);
+  n.textContent = sum === 100 ? "Adds up to 100% ✓" : `Flood + Bare + Veg = ${sum}% (usually should total 100%)`;
+  n.className = "sumnote " + (sum === 100 ? "good" : "bad");
+}
+for (const b of $$("[data-now]")) b.addEventListener("click", () => {
+  const k = b.dataset.now; S[k] = nowTime(); $(`[data-f=${k}]`).value = S[k]; save(); toast(`${k === "start" ? "Start" : "End"} time set to ${S[k]}`);
+});
+
+/* ---------- tabs ---------- */
+function go(tab) {
+  for (const s of $$("section.tab")) s.classList.toggle("active", s.id === "tab-" + tab);
+  for (const b of $$("nav.tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
+  if (tab === "send") paintReview();
+  window.scrollTo(0, 0);
+  try { sessionStorage.setItem("shorebird.tab", tab); } catch {}
+}
+for (const b of $$("nav.tabs button")) b.addEventListener("click", () => go(b.dataset.tab));
+for (const b of $$("[data-go]")) b.addEventListener("click", () => {
+  if (b.dataset.go === "birds" && !S.start) { S.start = nowTime(); $("[data-f=start]").value = S.start; save(); toast(`Start time set to ${S.start}`); }
+  if (b.dataset.go === "cond" && !S.end) { S.end = nowTime(); $("[data-f=end]").value = S.end; save(); toast(`End time set to ${S.end}`); }
+  go(b.dataset.go);
+});
+function refreshHeader() {
+  const a = S.area ? `Area ${S.area}` : "No area yet";
+  $("#hdrSub").textContent = `${a} · ${S.date || ""}`;
+}
+
+/* ---------- review / CSV ---------- */
+function problems() {
+  const p = [];
+  const need = [["area","Survey area"],["date","Date"],["start","Start time"],["end","End time"],["obs1","Observer 1"],["recorder","Data recorder"],["cloud","Cloud cover"],["visible","Visible area"]];
+  for (const [k, lbl] of need) if (S[k] === "" || S[k] == null) p.push(lbl);
+  for (const [k, lbl] of [["wind","Wind"],["precip","Precipitation"],["tide","Tide"],["vegHeight","Veg height"]]) if (S[k] == null) p.push(lbl);
+  if (!S.cover.length) p.push("Cover type");
+  if (S.cover.includes(99) && !S.condNotes.trim()) p.push("Cover type “Other” needs a note");
+  if (S.start && S.end && S.end < S.start) p.push("End time is before start time");
+  return p;
+}
+function paintReview() {
+  const p = problems(), ul = $("#checks");
+  ul.innerHTML = p.length
+    ? p.map(x => `<li class="miss"><span class="ic">!</span><span>${x === "End time is before start time" || x.includes("needs") ? x : "Missing: " + x}</span></li>`).join("")
+    : `<li class="okk"><span class="ic">✓</span><span>All required fields are filled in.</span></li>`;
+  const rows = birdRows();
+  $("#summary").innerHTML = rows.length
+    ? `<table>${rows.map(r => `<tr><td>${esc(r.name)} <small style="color:var(--muted)">${esc(r.code)}</small></td><td>${r.count}</td></tr>`).join("")}<tr><td><b>Total</b></td><td>${totalBirds()}</td></tr></table>`
+    : `<p class="hint">No birds recorded. The CSV will still include the conditions, with one row marked NONE.</p>`;
+  paintHistory();
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function birdRows() {
+  const out = [];
+  for (const [group, list] of Object.entries(SPECIES))
+    for (const [code, name] of list) if (S.counts[code] > 0) out.push({ group: group.replace(/s$/, ""), code, name, count: S.counts[code] });
+  for (const o of S.others) if (o.count > 0) out.push({ group: "Other", code: o.code, name: o.name, count: o.count });
+  return out;
+}
+const label = (k, v) => { const f = PICKS[k].find(x => x[0] === v); return f ? f[1] : ""; };
+function buildCSV() {
+  const area = AREAS.find(a => a[0] === S.area);
+  const surveyId = `${S.date}_${S.area.replace(/\W+/g, "")}_${S.start.replace(":", "")}`;
+  const base = {
+    SurveyID: surveyId, SurveyArea: S.area, AreaName: area ? area[1] : "", Date: S.date, StartTime: S.start, EndTime: S.end,
+    Obs1: S.obs1, Obs2: S.obs2, DataRecorder: S.recorder,
+    Wind: S.wind ?? "", Precip: S.precip ?? "", CloudCover: S.cloud,
+    CoverType1: S.cover[0] ?? "", CoverType1Name: S.cover[0] != null ? label("cover", S.cover[0]) : "",
+    CoverType2: S.cover[1] ?? "", CoverType2Name: S.cover[1] != null ? label("cover", S.cover[1]) : "",
+    Tide: S.tide ?? "", TideName: S.tide != null ? label("tide", S.tide) : "",
+    VisibleArea: S.visible, PercFlood: S.flood, PercBare: S.bare, PercVeg: S.veg, VegHeight: S.vegHeight ?? "",
+    ConditionsNotes: S.condNotes, BirdNotes: S.birdNotes,
+  };
+  let rows = birdRows();
+  if (!rows.length) rows = [{ group: "", code: "NONE", name: "No birds observed", count: 0 }];
+  const cols = [...Object.keys(base), "Group", "Species", "Code", "Count"];
+  const q = v => { const s = String(v ?? ""); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const lines = [cols.join(",")];
+  for (const r of rows) lines.push(cols.map(c => q(c in base ? base[c] : { Group: r.group, Species: r.name, Code: r.code, Count: r.count }[c])).join(","));
+  return { csv: lines.join("\r\n") + "\r\n", name: `shorebird_area${S.area.replace(/\W+/g, "") || "X"}_${S.date || "nodate"}.csv` };
+}
+function confirmProblems() {
+  const p = problems();
+  return !p.length || confirm(`Some items are missing or need checking:\n\n• ${p.join("\n• ")}\n\nSend anyway?`);
+}
+function remember(name, csv) {
+  const h = store.get(HKEY, []).filter(x => x.name !== name);
+  h.unshift({ name, csv, at: new Date().toISOString() });
+  store.set(HKEY, h.slice(0, 15));
+}
+function download(name, csv) {
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+async function share(name, csv) {
+  const file = new File([csv], name, { type: "text/csv" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return true; }
+    catch (e) { if (e.name === "AbortError") return false; }
+  }
+  download(name, csv); toast("Sharing isn't available here, so the file was downloaded instead");
+  return true;
+}
+$("#shareBtn").addEventListener("click", async () => {
+  if (!confirmProblems()) return;
+  const { csv, name } = buildCSV();
+  if (await share(name, csv)) { remember(name, csv); paintHistory(); }
+});
+$("#dlBtn").addEventListener("click", () => {
+  if (!confirmProblems()) return;
+  const { csv, name } = buildCSV(); download(name, csv); remember(name, csv); paintHistory();
+});
+$("#emailBtn").addEventListener("click", () => {
+  if (!confirmProblems()) return;
+  const { csv, name } = buildCSV(); remember(name, csv); paintHistory();
+  const body = `Shorebird survey data (${name}). Copy the text below into a file named ${name} if no attachment is included.\n\n${csv}`;
+  location.href = `mailto:${SEND_TO}?subject=${encodeURIComponent("Shorebird survey – Area " + S.area + " – " + S.date)}&body=${encodeURIComponent(body)}`;
+});
+function paintHistory() {
+  const h = store.get(HKEY, []), ul = $("#hist");
+  ul.innerHTML = h.length ? "" : `<li class="hint">Nothing sent yet from this phone.</li>`;
+  h.forEach(x => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${esc(x.name)}<br><small style="color:var(--muted)">${new Date(x.at).toLocaleString()}</small></span>`;
+    const b = document.createElement("button"); b.className = "btn"; b.textContent = "Share again";
+    b.addEventListener("click", () => share(x.name, x.csv));
+    li.append(b); ul.append(li);
+  });
+}
+$("#newBtn").addEventListener("click", () => {
+  const sent = store.get(HKEY, []).some(x => x.name === buildCSV().name);
+  if (!confirm(sent ? "Clear this survey and start a new one?" : "This survey hasn't been sent yet. Clear it anyway?")) return;
+  const keep = { obs1: S.obs1, obs2: S.obs2, recorder: S.recorder };
+  S = Object.assign(blank(), keep); store.set(KEY, S);
+  paintAll(); go("start"); toast("New survey started");
+});
+
+function paintAll() { paintFields(); paintPicks(); paintBirds(); refreshHeader(); }
+paintAll();
+try { const t = sessionStorage.getItem("shorebird.tab"); if (t) go(t); } catch {}
+
+if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
