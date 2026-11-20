@@ -124,10 +124,27 @@ button { font: inherit; cursor: pointer; }
   background: var(--bg); color: var(--ink); font-size: 24px; font-weight: 600; line-height: 1; flex: none;
 }
 .sp button.plus { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.sp input.count {
-  width: 64px; min-height: var(--tap); text-align: center; font-size: 20px; font-weight: 700;
-  padding: 4px; flex: none;
+.sp button.count {
+  width: 64px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--card); border-style: dashed;
 }
+.sp button.count.zero { color: var(--muted); font-weight: 500; }
+
+/* count pop-up */
+.modal { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: none; align-items: flex-end; justify-content: center; }
+.modal.open { display: flex; }
+.sheet {
+  background: var(--card); width: 100%; max-width: 480px; border-radius: 16px 16px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+}
+.sheet h3 { margin: 0; font-size: 20px; }
+.sheet .cur { color: var(--muted); font-size: 15px; margin: 2px 0 12px; }
+.sheet .cur b { color: var(--ink); font-size: 18px; }
+.sheet input { font-size: 28px; font-weight: 700; text-align: center; }
+.sheet .preview { text-align: center; font-size: 15px; color: var(--muted); min-height: 22px; margin: 8px 0; }
+.sheet .acts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.sheet .acts .btn { padding: 0 8px; }
+.sheet .cancel { width: 100%; margin-top: 8px; border: 0; background: none; color: var(--muted); }
 .sp .x { font-size: 18px; color: var(--danger); }
 .addother { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
 .addother .btn { grid-column: 1 / -1; }
@@ -207,7 +224,7 @@ nav.tabs button[aria-selected=true] { color: var(--accent); box-shadow: inset 0 
     <input type="text" id="filter" placeholder="Find species or code…" autocomplete="off" autocapitalize="off">
     <span class="tot" id="birdTot">0 birds</span>
   </div>
-  <p class="hint">Count all shorebirds on the ground during the survey (don't double-count birds that leave and return). Record raptors within, perched next to, or foraging over the area. Tap the number to type a large count.</p>
+  <p class="hint">Count all shorebirds on the ground during the survey (don't double-count birds that leave and return). Record raptors within, perched next to, or foraging over the area. Tap the number to add, subtract, or set a large count.</p>
   <div id="birdList"></div>
 
   <div class="card" id="otherCard">
@@ -319,6 +336,20 @@ nav.tabs button[aria-selected=true] { color: var(--accent); box-shadow: inset 0 
   <button role="tab" data-tab="send" aria-selected="false"><span class="n">4</span>Send</button>
 </nav>
 <div class="toast" id="toast"></div>
+<div class="modal" id="countModal" role="dialog" aria-modal="true" aria-labelledby="mName">
+  <div class="sheet">
+    <h3 id="mName"></h3>
+    <div class="cur" id="mCur"></div>
+    <input id="mInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Number of birds" placeholder="0">
+    <div class="preview" id="mPrev"></div>
+    <div class="acts">
+      <button class="btn primary" data-m="add">Add</button>
+      <button class="btn" data-m="sub">Subtract</button>
+      <button class="btn" data-m="set">Set to</button>
+    </div>
+    <button class="btn cancel" id="mCancel">Cancel</button>
+  </div>
+</div>
 
 <script>
 /* ======================= CONFIG — edit these lists ======================= */
@@ -433,7 +464,7 @@ function spRow(code, name, group) {
   d.className = "sp"; d.dataset.code = code; d.dataset.search = (code + " " + name).toLowerCase();
   d.innerHTML = `<div class="nm"><div>${name}</div><small>${code}${SPECIES_NOTE[code] ? " · " + SPECIES_NOTE[code] : ""}</small></div>
     <button type="button" class="minus" aria-label="Minus one ${name}">−</button>
-    <input class="count" inputmode="numeric" aria-label="${name} count" value="">
+    <button type="button" class="count zero" aria-label="${name} count. Tap to add or set a number">0</button>
     <button type="button" class="plus" aria-label="Plus one ${name}">+</button>`;
   return d;
 }
@@ -445,32 +476,54 @@ for (const [group, list] of Object.entries(SPECIES)) {
 }
 birdList.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
-  const code = b.closest(".sp").dataset.code;
-  const n = (S.counts[code] || 0) + (b.classList.contains("plus") ? 1 : -1);
-  if (n > 0) S.counts[code] = n; else delete S.counts[code];
+  const row = b.closest(".sp"), code = row.dataset.code, name = $(".nm div", row).textContent;
+  const setN = n => { if (n > 0) S.counts[code] = n; else delete S.counts[code]; paintBirds(); save(); };
+  if (b.classList.contains("count")) { openCount(name, code, S.counts[code] || 0, setN); return; }
   if (navigator.vibrate) navigator.vibrate(8);
-  paintBirds(); save();
+  setN((S.counts[code] || 0) + (b.classList.contains("plus") ? 1 : -1));
 });
-birdList.addEventListener("input", e => {
-  if (!e.target.classList.contains("count")) return;
-  const code = e.target.closest(".sp").dataset.code;
-  const n = parseInt(e.target.value.replace(/\D/g, ""), 10);
-  if (n > 0) S.counts[code] = n; else delete S.counts[code];
-  e.target.closest(".sp").classList.toggle("has", n > 0);
-  paintTotals(); save();
-});
-birdList.addEventListener("focusin", e => { if (e.target.classList.contains("count")) e.target.select(); });
-birdList.addEventListener("focusout", e => { if (e.target.classList.contains("count")) paintBirds(); });
 
+function paintCount(btn, n) { btn.textContent = n; btn.classList.toggle("zero", !n); }
 function paintBirds() {
   for (const row of $$(".sp", birdList)) {
-    const n = S.counts[row.dataset.code] || 0, inp = $(".count", row);
-    if (document.activeElement !== inp) inp.value = n ? n : "";
-    inp.placeholder = "0";
+    const n = S.counts[row.dataset.code] || 0;
+    paintCount($(".count", row), n);
     row.classList.toggle("has", n > 0);
   }
   paintOthers(); paintTotals();
 }
+
+/* ---------- count pop-up: Add / Subtract / Set ---------- */
+const modal = $("#countModal"), mInput = $("#mInput");
+let mCtx = null;
+function openCount(name, code, current, apply) {
+  mCtx = { current, apply };
+  $("#mName").textContent = name;
+  $("#mCur").innerHTML = `${esc(code)} · now <b>${current}</b>`;
+  mInput.value = ""; mPreview();
+  modal.classList.add("open");
+  mInput.focus();
+}
+function closeCount() { modal.classList.remove("open"); mInput.blur(); mCtx = null; }
+function mVal() { return parseInt(mInput.value.replace(/\D/g, ""), 10); }
+function mPreview() {
+  const v = mVal(), c = mCtx ? mCtx.current : 0;
+  $("#mPrev").textContent = Number.isNaN(v) ? "Type a number, then tap Add, Subtract or Set to"
+    : `Add → ${c + v}   ·   Subtract → ${Math.max(0, c - v)}   ·   Set → ${v}`;
+}
+mInput.addEventListener("input", () => { mInput.value = mInput.value.replace(/\D/g, "").slice(0, 6); mPreview(); });
+for (const b of $$("[data-m]", modal)) b.addEventListener("click", () => {
+  const v = mVal();
+  if (Number.isNaN(v)) { toast("Type a number first"); mInput.focus(); return; }
+  const c = mCtx.current, op = b.dataset.m;
+  const n = op === "add" ? c + v : op === "sub" ? Math.max(0, c - v) : v;
+  mCtx.apply(n);
+  toast(op === "set" ? `Set to ${n}` : `${c} ${op === "add" ? "+" : "−"} ${v} = ${n}`);
+  closeCount();
+});
+mInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("[data-m=add]", modal).click(); } });
+$("#mCancel").addEventListener("click", closeCount);
+modal.addEventListener("click", e => { if (e.target === modal) closeCount(); });
 function totalBirds() { return Object.values(S.counts).reduce((a, b) => a + b, 0) + S.others.reduce((a, o) => a + (o.count || 0), 0); }
 function paintTotals() {
   const t = totalBirds(), sp = Object.keys(S.counts).length + S.others.filter(o => o.count > 0).length;
@@ -489,17 +542,16 @@ function paintOthers() {
   S.others.forEach((o, i) => {
     const d = spRow(o.code || "—", o.name, "Other");
     d.classList.toggle("has", o.count > 0);
-    const inp = $(".count", d); inp.value = o.count || ""; inp.placeholder = "0";
+    paintCount($(".count", d), o.count || 0);
     const x = document.createElement("button"); x.type = "button"; x.className = "x"; x.textContent = "✕"; x.setAttribute("aria-label", "Remove " + o.name);
     d.append(x);
     d.addEventListener("click", e => {
       const b = e.target.closest("button"); if (!b) return;
       if (b === x) { if (confirm(`Remove ${o.name}?`)) { S.others.splice(i, 1); paintOthers(); paintTotals(); save(); } return; }
-      o.count = Math.max(0, (o.count || 0) + (b.classList.contains("plus") ? 1 : -1));
-      paintOthers(); paintTotals(); save();
+      const setN = n => { o.count = Math.max(0, n); paintOthers(); paintTotals(); save(); };
+      if (b.classList.contains("count")) { openCount(o.name, o.code || "Other", o.count || 0, setN); return; }
+      setN((o.count || 0) + (b.classList.contains("plus") ? 1 : -1));
     });
-    inp.addEventListener("input", () => { o.count = parseInt(inp.value.replace(/\D/g, ""), 10) || 0; d.classList.toggle("has", o.count > 0); paintTotals(); save(); });
-    inp.addEventListener("focus", () => inp.select());
     box.append(d);
   });
 }
